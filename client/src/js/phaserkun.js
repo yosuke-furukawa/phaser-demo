@@ -111,6 +111,9 @@
         other.x = otherPlayer.position.x;
         other.y = otherPlayer.position.y;
       }.bind(this));
+      socket.on("collision", function(){
+        console.log("collision");
+      });
     },
     update: function() {
       this.updatePlayer(player);

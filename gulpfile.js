@@ -12,13 +12,13 @@ var gulp = require('gulp')
   , paths;
 
 paths = {
-  assets: 'src/assets/**/*',
-  css:    'src/css/*.css', 
+  assets: 'client/src/assets/**/*',
+  css:    'client/src/css/*.css', 
   libs:   [
-    'src/bower_components/phaser-official/build/phaser.min.js'
+    'client/src/bower_components/phaser-official/build/phaser.min.js'
   ],
-  js:     ['src/js/**/*.js'],
-  dist:   './dist/'
+  js:     ['client/src/js/**/*.js'],
+  dist:   './client/dist/'
 };
 
 gulp.task('clean', function () {
@@ -55,14 +55,14 @@ gulp.task('minifycss', function () {
 });
 
 gulp.task('processhtml', function() {
-  gulp.src('src/index.html')
+  gulp.src('client/src/index.html')
     .pipe(processhtml('index.html'))
     .pipe(gulp.dest(paths.dist))
     .on('error', gutil.log);
 });
 
 gulp.task('minifyhtml', function() {
-  gulp.src('dist/index.html')
+  gulp.src('client/dist/index.html')
     .pipe(minifyhtml())
     .pipe(gulp.dest(paths.dist))
     .on('error', gutil.log);
@@ -76,14 +76,14 @@ gulp.task('lint', function() {
 });
 
 gulp.task('html', function(){
-  gulp.src('src/*.html')
+  gulp.src('client/src/*.html')
     .pipe(connect.reload())
     .on('error', gutil.log);
 });
 
 gulp.task('connect', function () {
   connect.server({
-    root: [__dirname + '/src'],
+    root: [__dirname + '/client/src'],
     port: 9000,
     livereload: true
   });
@@ -91,7 +91,7 @@ gulp.task('connect', function () {
 
 gulp.task('watch', function () {
   gulp.watch(paths.js, ['lint']);
-  gulp.watch(['./src/index.html', paths.css, paths.js], ['html']);
+  gulp.watch(['./client/src/index.html', paths.css, paths.js], ['html']);
 });
 
 gulp.task('default', ['connect', 'watch']);

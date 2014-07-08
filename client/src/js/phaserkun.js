@@ -5,6 +5,11 @@
   var platforms;
   var player;
   var stars;
+  var alivedStarCount = 10;
+  var score = 0;
+  var scoreText;
+  var timeText;
+  var startTime;
   Phaserkun.prototype = {
     
     preload: function () {
@@ -46,6 +51,7 @@
 
       ledge.body.immovable = true;
 
+      startTime = Date.now();
 
       // The player and its settings
       player = this.game.add.sprite(32, this.game.world.height - 150, 'dude');
@@ -67,7 +73,7 @@
       stars.enableBody = true;
 
       //  Here we'll create 12 of them evenly spaced apart
-      for (var i = 0; i < 12; i++) {
+      for (var i = 0; i < alivedStarCount; i++) {
         //  Create a star inside of the 'stars' group
         var star = stars.create(i * 70, 0, 'star');
 
@@ -76,7 +82,11 @@
 
         //  This just gives each star a slightly random bounce value
         star.body.bounce.y = 0.7 + Math.random() * 0.2;
+
       }
+
+      scoreText = this.game.add.text(16, 16, 'Score: ', { fontSize: '32px', fill: '#000' });
+      timeText = this.game.add.text(this.game.world.width - 200, 16, 'Time: ', { fontSize: '32px', fill: '#000' });
     },
     update: function() {
       this.game.physics.arcade.collide(player, platforms);
@@ -87,18 +97,19 @@
         player.body.velocity.x = -150;
 
         player.animations.play('left');
-      }
-      else if (this.cursors.right.isDown) {
+      } else if (this.cursors.right.isDown) {
         //  Move to the right
         player.body.velocity.x = 150;
 
         player.animations.play('right');
-      }
-      else {
+      } else {
         //  Stand still
         player.animations.stop();
 
         player.frame = 4;
+      }
+      if (alivedStarCount > 0) {
+        timeText.text = 'Time: ' + (Date.now() - startTime)/1000;
       }
 
       //  Allow the player to jump if they are touching the ground.
@@ -110,6 +121,10 @@
     },
     collectStar: function(player, star) {
       star.kill();
+      alivedStarCount--;
+
+      score += 10;
+      scoreText.text = 'Score: ' + score;
     },
   };
 

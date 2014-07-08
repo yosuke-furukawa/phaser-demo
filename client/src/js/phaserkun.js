@@ -10,6 +10,8 @@
   var scoreText;
   var timeText;
   var startTime;
+  var otherPlayers = {};
+  var socket;
   Phaserkun.prototype = {
     
     preload: function () {
@@ -18,6 +20,13 @@
       this.game.load.image('star', 'assets/star.png');
       this.game.load.spritesheet('hato', 'assets/hato.png', 24, 30);
     },
+
+    setupPlayer: function() {
+      var player = this.game.add.sprite(32, this.game.world.height - 150, 'hato');
+      player.anchor.setTo(0.5, 0.5);
+      this.game.physics.arcade.enable(player);
+      return player;
+    }, 
 
     create: function () {
       this.cursors = this.game.input.keyboard.createCursorKeys();
@@ -53,30 +62,17 @@
 
       startTime = Date.now();
 
-      // The player and its settings
-      player = this.game.add.sprite(32, this.game.world.height - 150, 'hato');
-
-//      // 中心点にxを合わせる
-      player.anchor.setTo(0.5, 0.5);
-
-      //  We need to enable physics on the player
-      this.game.physics.arcade.enable(player);
-
-
-      //  Player physics properties. Give the little guy a slight bounce.
-//      player.body.bounce.y = 0.2;
-      player.body.bounce.y  = 0;
-      player.body.gravity.y = 300;
-      player.body.collideWorldBounds = true;
-
-      //  Our two animations, walking left and right.
-      player.animations.add('stop', [0, 0, 0, 0, 0, 1], 2, true);
-      player.animations.add('run',  [5, 6, 7, 8], 10, true);
-      player.animations.add('jump', [13, 14, 15, 16], 10, true);
       
       stars = this.game.add.group();
 
       stars.enableBody = true;
+      player = this.setupPlayer();
+      player.body.bounce.y  = 0;
+      player.body.gravity.y = 300;
+      player.body.collideWorldBounds = true;
+      player.animations.add('stop', [0, 0, 0, 0, 0, 1], 2, true);
+      player.animations.add('run',  [5, 6, 7, 8], 10, true);
+      player.animations.add('jump', [13, 14, 15, 16], 10, true);
 
       //  Here we'll create 12 of them evenly spaced apart
       for (var i = 0; i < alivedStarCount; i++) {
@@ -88,13 +84,28 @@
 
         //  This just gives each star a slightly random bounce value
         star.body.bounce.y = 0.7 + Math.random() * 0.2;
-
+        socket = io('http://localhost:3000/');
+        socket.on("position", function(otherPlayer){
+          var other;
+          if (!otherPlayers[otherPlayer.id]) {
+            other = this.setupPlayer();
+            otherPlayers[otherPlayer.id] = other;
+          } else {
+            other = otherPlayers[otherPlayer.id];
+          }
+          other.x = otherPlayer.position.x;
+          other.y = otherPlayer.position.y;
+        }.bind(this));
       }
 
       scoreText = this.game.add.text(16, 16, 'Score: ', { fontSize: '32px', fill: '#000' });
       timeText = this.game.add.text(this.game.world.width - 200, 16, 'Time: ', { fontSize: '32px', fill: '#000' });
     },
     update: function() {
+      this.updatePlayer(player);
+      this.syncPlayer(player);
+    },
+    updatePlayer: function(player) {
       this.game.physics.arcade.collide(player, platforms);
       player.body.velocity.x = 0;
 
@@ -136,6 +147,9 @@
 
       score += 10;
       scoreText.text = 'Score: ' + score;
+    },
+    syncPlayer: function(player) {
+      socket.emit("position", {x: player.x, y:player.y});
     },
   };
 

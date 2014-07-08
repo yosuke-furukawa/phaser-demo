@@ -9,6 +9,7 @@ var gulp = require('gulp')
   , jshint = require('gulp-jshint')
   , uglify = require('gulp-uglify')
   , connect = require('gulp-connect')
+  , eslint = require('gulp-eslint')
   , paths;
 
 paths = {
@@ -92,6 +93,20 @@ gulp.task('connect', function () {
 gulp.task('watch', function () {
   gulp.watch(paths.js, ['lint']);
   gulp.watch(['./client/src/index.html', paths.css, paths.js], ['html']);
+});
+
+gulp.task('lint', function() {
+  gulp.src(['client/src/js/**/*.js'])
+  .pipe(eslint({
+    rules:{
+      'quotes': 0,
+    },
+    globals:{
+      "Phaser": true,
+      "window": true,
+    }
+  }))
+  .pipe(eslint.format());
 });
 
 gulp.task('default', ['connect', 'watch']);

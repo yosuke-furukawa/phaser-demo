@@ -4,10 +4,10 @@
   "readme": "",
   "repository": "",
   "version": "0.0.0",
-  "readme": "",
-  "repository": "",
-  "dependencies": {},
-  
+  "dependencies": {
+    "express": "^4.5.1",
+    "socket.io": "^1.0.6"
+  },
   "devDependencies": {
     "bower": "*",
     "gulp": "*",
@@ -25,12 +25,10 @@
     "gulp-watch": "*",
     "tiny-lr": "*"
   },
-
   "scripts": {
     "post-install": "node ./node_modules/bower/bin/bower install",
-    "start": "node ./node_modules/gulp/bin/gulp.js",
-
+    "start": "node server/index.js",
     "build": "node ./node_modules/gulp/bin/gulp.js build",
-    "lint":  "node ./node_modules/gulp/bin/gulp.js lint"
+    "lint": "node ./node_modules/gulp/bin/gulp.js lint"
   }
 }

@@ -12,6 +12,8 @@
   var timeText;
   var startTime;
   var otherPlayers = {};
+  var otherShurikens = {};
+  var explosions;
   var socket;
 
   // TODO::プレイヤークラスに持たせる
@@ -34,6 +36,7 @@
       player.animations.add('stop', [0, 0, 0, 0, 0, 1], 2, true);
       player.animations.add('run',  [5, 6, 7, 8], 10, true);
       player.animations.add('jump', [13, 14, 15, 16], 10, true);
+      player.animations.add('collide', [19, 20, 21, 22], 10, true);
       return player;
     }, 
     createShuriken: function(x, y) {
@@ -96,10 +99,8 @@
       for (var i = 0; i < alivedStarCount; i++) {
         //  Create a star inside of the 'stars' group
         var star = stars.create(i * 70, 0, 'star');
-
         //  Let gravity do its thing
         star.body.gravity.y = 6;
-
         //  This just gives each star a slightly random bounce value
         star.body.bounce.y = 0.7 + Math.random() * 0.2;
       }
@@ -107,6 +108,13 @@
       scoreText = this.game.add.text(16, 16, 'Score: ', { fontSize: '32px', fill: '#000' });
       timeText = this.game.add.text(this.game.world.width - 200, 16, 'Time: ', { fontSize: '32px', fill: '#000' });
       socket = io();
+      socket.on("connect", function(id){ 
+        otherPlayers[id] = player;
+      });
+      socket.on("leave", function(id){ 
+        var player = otherPlayers[id];
+        if (player) player.kill();
+      });
       socket.on("animation", function(otherPlayer){
         var other;
         if (!otherPlayers[otherPlayer.id]) {
@@ -129,18 +137,34 @@
         other.x = otherPlayer.position.x;
         other.y = otherPlayer.position.y;
       }.bind(this));
-      socket.on("collision", function(){
-        console.log("collision");
+      socket.on("collision", function(collider){
+        var collider = otherPlayers[collider.person.id];
+        if (collider) {
+
+          collider.animations.play("collide");
+        }
       });
+      socket.on("shuriken", function(shuriken) {
+        var otherShuriken = {};
+        if (!otherShurikens[shuriken.id]) {
+          otherShuriken = this.createShuriken();
+          otherShuriken.id = shuriken.id;
+          otherShuriken.x = shuriken.x;
+          otherShuriken.y = shuriken.y;
+          otherShurikens[shuriken.id] = otherShuriken;
+        } else {
+          otherShuriken = otherShurikens[shuriken.id];
+          otherShuriken.x = shuriken.x;
+          otherShuriken.y = shuriken.y;
+        }
+      }.bind(this));
     },
     update: function() {
       this.updatePlayer(player);
       this.syncPlayer(player);
+      this.updateShuriken(player);
     },
-    updatePlayer: function(player) {
-      this.game.physics.arcade.collide(player, platforms);
-      player.body.velocity.x = 0;
-
+    updateShuriken: function(player) {
    // TODO::spaceキー対応
    // if (this.cursors.space.isDown) {
       if (this.cursors.down.isDown) {
@@ -148,12 +172,25 @@
           var shuriken = this.createShuriken();
           shuriken.x = player.x;
           shuriken.y = player.y;
+          shuriken.id = Math.floor(Math.random() * 1000000);
           shuriken.body.collideWorldBounds = true;
           shuriken.body.gravity.y = 0;
           shuriken.body.velocity.x = (player.scale.x > 0) ? 250 : -250;
+          shuriken.update = function() {
+            socket.emit("shuriken", {
+              id: this.id, 
+              x: this.x, 
+              y: this.y
+            });
+          };
           usedShurikenAt = this.time.now;
         }
       }
+
+    },
+    updatePlayer: function(player) {
+      this.game.physics.arcade.collide(player, platforms);
+      player.body.velocity.x = 0;
 
       if (this.cursors.left.isDown) {
         //  Move to the left

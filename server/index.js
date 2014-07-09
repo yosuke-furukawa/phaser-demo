@@ -4,12 +4,16 @@ var app = express();
 var server = app.listen(process.PORT || 3000);
 var io = require("socket.io")(server);
 
-console.log(__dirname + "../client/src");
 app.use(express.static(__dirname + "/../client/src"));
 
 var positions = {};
+var shurikenPositions = {};
 
 io.on("connection", function(socket){
+  socket.emit("connect", socket.id);
+  socket.on("disconnection", function() {
+    io.emit("leave", socket.id);
+  });
   socket.on("animation", function(animation) {
     socket.broadcast.emit("animation", {
       id: socket.id,
@@ -17,14 +21,26 @@ io.on("connection", function(socket){
     });
   });
   socket.on("position", function(position) {
+    position.id = socket.id;
     positions[socket.id] = position;
     socket.broadcast.emit("position", {
       id: socket.id,
       position : position
     });
-    if (collision(positions, position, socket)) {
-      io.emit("collision");
+    var collider = collision(positions, shurikenPositions, socket);
+    if (collider) {
+      io.emit("collision", collider);
+    }
+  });
+  socket.on("shuriken", function(shuriken) {
+    shurikenPositions[shuriken.id] = shuriken;
+    socket.broadcast.emit("shuriken", shuriken);
+    var collider = collision(positions, shurikenPositions, socket);
+    if (collider) {
+      io.emit("collision", collider);
     }
   });
 });
+
+
 

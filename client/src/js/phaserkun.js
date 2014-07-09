@@ -4,6 +4,7 @@
   var Phaserkun = function() {};
   var platforms;
   var player;
+  var shurikens;
   var stars;
   var alivedStarCount = 10;
   var score = 0;
@@ -12,12 +13,17 @@
   var startTime;
   var otherPlayers = {};
   var socket;
+
+  // TODO::プレイヤークラスに持たせる
+  var usedShurikenAt = 0;
+
   Phaserkun.prototype = {
     
     preload: function () {
       this.game.load.image('sky', 'assets/sky.png');
       this.game.load.image('ground', 'assets/platform.png');
       this.game.load.image('star', 'assets/star.png');
+      this.game.load.image('shuriken', 'assets/shuriken.png');
       this.game.load.spritesheet('hato', 'assets/hato.png', 24, 30);
     },
 
@@ -27,9 +33,16 @@
       this.game.physics.arcade.enable(player);
       return player;
     }, 
-
+    createShuriken: function(x, y) {
+      var shuriken = this.shurikens.create(x, y, 'shuriken');
+      shuriken.anchor.setTo(0.5, 0.5);
+      return shuriken;
+    }, 
     create: function () {
       this.cursors = this.game.input.keyboard.createCursorKeys();
+      // TODO::spaceキー対応
+      //  this.cursors.space = this.game.input.keyboard.SPACEBAR;
+
       //  We're going to be using physics, so enable the Arcade Physics system
       this.game.physics.startSystem(Phaser.Physics.ARCADE);
 
@@ -62,13 +75,18 @@
 
       startTime = Date.now();
 
-      
+      // 星関連
       stars = this.game.add.group();
-
       stars.enableBody = true;
+
+      // 手裏剣
+      this.shurikens = this.game.add.group();
+      this.shurikens.enableBody = true;
+
+      // プレイヤー
       player = this.setupPlayer();
       player.body.bounce.y  = 0;
-      player.body.gravity.y = 300;
+      player.body.gravity.y = 500;
       player.body.collideWorldBounds = true;
       player.animations.add('stop', [0, 0, 0, 0, 0, 1], 2, true);
       player.animations.add('run',  [5, 6, 7, 8], 10, true);
@@ -85,7 +103,7 @@
         //  This just gives each star a slightly random bounce value
         star.body.bounce.y = 0.7 + Math.random() * 0.2;
         socket = io('http://localhost:3000/');
-        socket.on("position", function(otherPlayer){
+        socket.on('position', function(otherPlayer){
           var other;
           if (!otherPlayers[otherPlayer.id]) {
             other = this.setupPlayer();
@@ -108,6 +126,20 @@
     updatePlayer: function(player) {
       this.game.physics.arcade.collide(player, platforms);
       player.body.velocity.x = 0;
+
+   // TODO::spaceキー対応
+   // if (this.cursors.space.isDown) {
+      if (this.cursors.down.isDown) {
+        if (this.time.now > usedShurikenAt + 200) {
+          var shuriken = this.createShuriken();
+          shuriken.x = player.x;
+          shuriken.y = player.y;
+          shuriken.body.collideWorldBounds = true;
+          shuriken.body.gravity.y = 0;
+          shuriken.body.velocity.x = (player.scale.x > 0) ? 250 : -250;
+          usedShurikenAt = this.time.now;
+        }
+      }
 
       if (this.cursors.left.isDown) {
         //  Move to the left
@@ -134,10 +166,11 @@
 
       //  Allow the player to jump if they are touching the ground.
       if (this.cursors.up.isDown && player.body.touching.down) {
-        player.body.velocity.y = -350;
+        player.body.velocity.y = -450;
         player.animations.play('jump');
       }
 
+      this.game.physics.arcade.collide(shurikens, platforms);
       this.game.physics.arcade.collide(stars, platforms);
       this.game.physics.arcade.overlap(player, stars, this.collectStar, null, this);
     },
@@ -157,5 +190,3 @@
   window['test-phaser'].Phaserkun = Phaserkun;
 
 }());
-
-

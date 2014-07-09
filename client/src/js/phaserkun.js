@@ -176,12 +176,16 @@
           shuriken.body.collideWorldBounds = true;
           shuriken.body.gravity.y = 0;
           shuriken.body.velocity.x = (player.scale.x > 0) ? 250 : -250;
+          shuriken.born = Date.now();
           shuriken.update = function() {
+            this.age = Date.now() - this.born;
             socket.emit("shuriken", {
               id: this.id, 
               x: this.x, 
-              y: this.y
+              y: this.y,
+              age: this.age,
             });
+            if (this.age > 3000) this.kill();
           };
           usedShurikenAt = this.time.now;
         }

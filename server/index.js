@@ -1,7 +1,7 @@
 var express = require("express")
 var collision = require("./collision");
 var app = express();
-var server = app.listen(process.PORT || 3000);
+var server = app.listen(process.env.PORT || 3000);
 var io = require("socket.io")(server);
 
 app.use(express.static(__dirname + "/../client/src"));

@@ -31,6 +31,9 @@
       var player = this.game.add.sprite(32, this.game.world.height - 150, 'hato');
       player.anchor.setTo(0.5, 0.5);
       this.game.physics.arcade.enable(player);
+      player.animations.add('stop', [0, 0, 0, 0, 0, 1], 2, true);
+      player.animations.add('run',  [5, 6, 7, 8], 10, true);
+      player.animations.add('jump', [13, 14, 15, 16], 10, true);
       return player;
     }, 
     createShuriken: function(x, y) {
@@ -88,9 +91,6 @@
       player.body.bounce.y  = 0;
       player.body.gravity.y = 500;
       player.body.collideWorldBounds = true;
-      player.animations.add('stop', [0, 0, 0, 0, 0, 1], 2, true);
-      player.animations.add('run',  [5, 6, 7, 8], 10, true);
-      player.animations.add('jump', [13, 14, 15, 16], 10, true);
 
       //  Here we'll create 12 of them evenly spaced apart
       for (var i = 0; i < alivedStarCount; i++) {
@@ -102,22 +102,36 @@
 
         //  This just gives each star a slightly random bounce value
         star.body.bounce.y = 0.7 + Math.random() * 0.2;
-        socket = io('http://localhost:3000/');
-        socket.on('position', function(otherPlayer){
-          var other;
-          if (!otherPlayers[otherPlayer.id]) {
-            other = this.setupPlayer();
-            otherPlayers[otherPlayer.id] = other;
-          } else {
-            other = otherPlayers[otherPlayer.id];
-          }
-          other.x = otherPlayer.position.x;
-          other.y = otherPlayer.position.y;
-        }.bind(this));
       }
 
       scoreText = this.game.add.text(16, 16, 'Score: ', { fontSize: '32px', fill: '#000' });
       timeText = this.game.add.text(this.game.world.width - 200, 16, 'Time: ', { fontSize: '32px', fill: '#000' });
+      socket = io();
+      socket.on("animation", function(otherPlayer){
+        var other;
+        if (!otherPlayers[otherPlayer.id]) {
+          other = this.setupPlayer();
+          otherPlayers[otherPlayer.id] = other;
+        } else {
+          other = otherPlayers[otherPlayer.id];
+        }
+        other.scale.x = otherPlayer.animation.scale_x;
+        other.animations.play(otherPlayer.animation.action);
+      }.bind(this));
+      socket.on("position", function(otherPlayer){
+        var other;
+        if (!otherPlayers[otherPlayer.id]) {
+          other = this.setupPlayer();
+          otherPlayers[otherPlayer.id] = other;
+        } else {
+          other = otherPlayers[otherPlayer.id];
+        }
+        other.x = otherPlayer.position.x;
+        other.y = otherPlayer.position.y;
+      }.bind(this));
+      socket.on("collision", function(){
+        console.log("collision");
+      });
     },
     update: function() {
       this.updatePlayer(player);
@@ -147,6 +161,7 @@
         player.body.velocity.x = -150;
 
         player.animations.play('run');
+        socket.emit("animation", {action: "run", scale_x: player.scale.x});
       } else if (this.cursors.right.isDown) {
         player.scale.x = 1;
         //  Move to the right
@@ -154,10 +169,13 @@
         player.angle = 0;
 
         player.animations.play('run');
+        socket.emit("animation", {action: "run", scale_x: player.scale.x});
       } else if (Math.abs(player.body.velocity.y) > 15) {
         player.animations.play('jump');
+        socket.emit("animation", {action: "jump", scale_x: player.scale.x});
       } else {
         player.animations.play('stop');
+        socket.emit("animation", {action: "stop", scale_x: player.scale.x});
       }
 
       if (alivedStarCount > 0) {
@@ -168,6 +186,7 @@
       if (this.cursors.up.isDown && player.body.touching.down) {
         player.body.velocity.y = -450;
         player.animations.play('jump');
+        socket.emit("animation", {action: "jump", angle: player.scale.x});
       }
 
       this.game.physics.arcade.collide(shurikens, platforms);

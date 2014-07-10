@@ -1,7 +1,7 @@
 var collision = function(positions, shurikenPositions, ignorePosition) {
   var result = false;
   Object.keys(positions).forEach(function(peopleId) {
-    if (peopleId !== ignorePosition.id) {
+    if (!ignorePosition || peopleId !== ignorePosition.id) {
       Object.keys(shurikenPositions).forEach(function(shurikenId) {
         var person = positions[peopleId];
         var shuriken = shurikenPositions[shurikenId];

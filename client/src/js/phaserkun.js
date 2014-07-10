@@ -108,9 +108,17 @@
       scoreText = this.game.add.text(16, 16, 'Score: ', { fontSize: '32px', fill: '#000' });
       timeText = this.game.add.text(this.game.world.width - 200, 16, 'Time: ', { fontSize: '32px', fill: '#000' });
       socket = io();
-      socket.on("connect", function(id){ 
-        otherPlayers[id] = player;
-      });
+      socket.on("start", function(players){ 
+        otherPlayers[players.id] = player;
+        Object.keys(players.positions).forEach(function(otherId) {
+          if (!otherPlayers[otherId]) {
+            var other = this.setupPlayer();
+            other.x = players.positions[otherId].x;
+            other.y = players.positions[otherId].y;
+            otherPlayers[otherId] = other;
+          }
+        }.bind(this));
+      }.bind(this));
       socket.on("leave", function(id){ 
         var player = otherPlayers[id];
         if (player) player.kill();
@@ -140,7 +148,6 @@
       socket.on("collision", function(collider){
         var collider = otherPlayers[collider.person.id];
         if (collider) {
-
           collider.animations.play("collide");
         }
       });
@@ -151,6 +158,11 @@
           otherShuriken.id = shuriken.id;
           otherShuriken.x = shuriken.x;
           otherShuriken.y = shuriken.y;
+          otherShuriken.born = Date.now();
+          otherShuriken.update = function() {
+            this.age = Date.now() - this.born;
+            if (this.age > 3000) this.kill();
+          };
           otherShurikens[shuriken.id] = otherShuriken;
         } else {
           otherShuriken = otherShurikens[shuriken.id];

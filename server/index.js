@@ -19,7 +19,7 @@ worldTimer.tick(function(){
   }
 });
 io.on("connection", function(socket){
-  socket.emit("connect", socket.id);
+  socket.emit("start", {id : socket.id, positions: positions});
   socket.on("disconnect", function() {
     delete positions[socket.id];
     socket.broadcast.emit("leave", socket.id);

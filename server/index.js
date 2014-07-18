@@ -29,6 +29,6 @@ io.on("connection", function(socket){
     });
   });
   socket.on("score", function(score) {
-    socket.broadcast.emit("score", score);
+    io.emit("score", score);
   });
 });

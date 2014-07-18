@@ -15,6 +15,7 @@
   var otherShurikens = {};
   var explosions;
   var socket;
+  var stopped = false;
 
   // TODO::プレイヤークラスに持たせる
   var usedShurikenAt = 0;
@@ -102,19 +103,19 @@
         //  Let gravity do its thing
         star.body.gravity.y = 6;
         //  This just gives each star a slightly random bounce value
-        star.body.bounce.y = 0.7 + Math.random() * 0.2;
+        star.body.bounce.y = 1;
       }
 
       scoreText = this.game.add.text(16, 16, 'Score: ', { fontSize: '32px', fill: '#000' });
       timeText = this.game.add.text(this.game.world.width - 200, 16, 'Time: ', { fontSize: '32px', fill: '#000' });
       socket = io();
       socket.on("start", function(players){ 
+        player.id = players.id;
         otherPlayers[players.id] = player;
         Object.keys(players.positions).forEach(function(otherId) {
           if (!otherPlayers[otherId]) {
             var other = this.setupPlayer();
-            other.x = players.positions[otherId].x;
-            other.y = players.positions[otherId].y;
+            other.id = otherId;
             otherPlayers[otherId] = other;
           }
         }.bind(this));
@@ -134,7 +135,7 @@
         other.scale.x = otherPlayer.animation.scale_x;
         other.animations.play(otherPlayer.animation.action);
       }.bind(this));
-      socket.on("position", function(otherPlayer){
+      socket.on("operation", function(otherPlayer){
         var other;
         if (!otherPlayers[otherPlayer.id]) {
           other = this.setupPlayer();
@@ -142,48 +143,37 @@
         } else {
           other = otherPlayers[otherPlayer.id];
         }
-        other.x = otherPlayer.position.x;
-        other.y = otherPlayer.position.y;
+        other.x = otherPlayer.operation.x;
+        other.y = otherPlayer.operation.y;
+        this.updatePlayer(other, otherPlayer.operation.cursors, false);
+        this.updateShuriken(other, otherPlayer.operation.cursors, false);
       }.bind(this));
-      socket.on("collision", function(collider){
-        var collider = otherPlayers[collider.person.id];
-        if (collider) {
-          collider.animations.play("collide");
+      socket.on("score", function(s){
+        console.log(s);
+        if (!s.id) {
+          score += s.score;
+          scoreText.text = 'Score: ' + score;
         }
-      });
-      socket.on("shuriken", function(shuriken) {
-        var otherShuriken = {};
-        if (!otherShurikens[shuriken.id]) {
-          otherShuriken = this.createShuriken();
-          otherShuriken.id = shuriken.id;
-          otherShuriken.x = shuriken.x;
-          otherShuriken.y = shuriken.y;
-          otherShuriken.born = Date.now();
-          otherShuriken.update = function() {
-            this.age = Date.now() - this.born;
-            if (this.age > 3000) this.kill();
-          };
-          otherShurikens[shuriken.id] = otherShuriken;
-        } else {
-          otherShuriken = otherShurikens[shuriken.id];
-          otherShuriken.x = shuriken.x;
-          otherShuriken.y = shuriken.y;
+        if (player.id === s.id) {
+          console.log(s);
+          score += s.score;
+          scoreText.text = 'Score: ' + score;
         }
       }.bind(this));
     },
     update: function() {
-      this.updatePlayer(player);
-      this.syncPlayer(player);
-      this.updateShuriken(player);
+      this.updatePlayer(player, this.cursors, true);
+      this.updateShuriken(player, this.cursors, true);
     },
-    updateShuriken: function(player) {
+    updateShuriken: function(player, cursors, sync) {
    // TODO::spaceキー対応
    // if (this.cursors.space.isDown) {
-      if (this.cursors.down.isDown) {
+      if (cursors.down.isDown) {
         if (this.time.now > usedShurikenAt + 200) {
           var shuriken = this.createShuriken();
           shuriken.x = player.x;
           shuriken.y = player.y;
+          shuriken.ownerId = player.id;
           shuriken.id = Math.floor(Math.random() * 1000000);
           shuriken.body.collideWorldBounds = true;
           shuriken.body.gravity.y = 0;
@@ -191,12 +181,6 @@
           shuriken.born = Date.now();
           shuriken.update = function() {
             this.age = Date.now() - this.born;
-            socket.emit("shuriken", {
-              id: this.id, 
-              x: this.x, 
-              y: this.y,
-              age: this.age,
-            });
             if (this.age > 3000) this.kill();
           };
           usedShurikenAt = this.time.now;
@@ -204,31 +188,36 @@
       }
 
     },
-    updatePlayer: function(player) {
+    updatePlayer: function(player, cursors, sync) {
       this.game.physics.arcade.collide(player, platforms);
       player.body.velocity.x = 0;
 
-      if (this.cursors.left.isDown) {
+      if (cursors.left.isDown) {
         //  Move to the left
         player.scale.x = -1;
         player.body.velocity.x = -150;
 
         player.animations.play('run');
-        socket.emit("animation", {action: "run", scale_x: player.scale.x});
-      } else if (this.cursors.right.isDown) {
+        if (sync) {
+          socket.emit("animation", {action: "run", scale_x: player.scale.x});
+        }
+      } else if (cursors.right.isDown) {
         player.scale.x = 1;
         //  Move to the right
         player.body.velocity.x = 150;
         player.angle = 0;
 
         player.animations.play('run');
-        socket.emit("animation", {action: "run", scale_x: player.scale.x});
+        if (sync) {
+          socket.emit("animation", {action: "run", scale_x: player.scale.x});
+        }
       } else if (Math.abs(player.body.velocity.y) > 15) {
         player.animations.play('jump');
-        socket.emit("animation", {action: "jump", scale_x: player.scale.x});
+        if (sync) {
+          socket.emit("animation", {action: "jump", scale_x: player.scale.x});
+        }
       } else {
         player.animations.play('stop');
-        socket.emit("animation", {action: "stop", scale_x: player.scale.x});
       }
 
       if (alivedStarCount > 0) {
@@ -236,25 +225,58 @@
       }
 
       //  Allow the player to jump if they are touching the ground.
-      if (this.cursors.up.isDown && player.body.touching.down) {
+      if (cursors.up.isDown && player.body.touching.down) {
         player.body.velocity.y = -450;
         player.animations.play('jump');
-        socket.emit("animation", {action: "jump", angle: player.scale.x});
+        if (sync) {
+          socket.emit("animation", {action: "jump", angle: player.scale.x});
+        }
+      }
+      if (sync) {
+        this.syncOperation(player);
       }
 
-      this.game.physics.arcade.collide(shurikens, platforms);
+      this.game.physics.arcade.collide(this.shurikens, platforms);
       this.game.physics.arcade.collide(stars, platforms);
       this.game.physics.arcade.overlap(player, stars, this.collectStar, null, this);
+      this.game.physics.arcade.overlap(player, this.shurikens, this.hitShuriken, null, this);
+    },
+    syncOperation: function(player) {
+      var cursor = {
+        up : {
+          isDown: this.cursors.up.isDown
+        },
+        left : {
+          isDown: this.cursors.left.isDown
+        },
+        right : {
+          isDown: this.cursors.right.isDown
+        },
+        down : {
+          isDown: this.cursors.down.isDown
+        },
+      };
+      if (this.cursors.up.isDown || this.cursors.left.isDown || this.cursors.right.isDown || this.cursors.down.isDown) {
+        socket.emit("operation", {cursors : cursor, x: player.x, y: player.y});
+        stopped = false;
+      } else if (!(stopped && player.body.touching.down)) {
+        socket.emit("operation", {cursors : cursor, x: player.x, y: player.y});
+        stopped = true;
+      } else {
+        // stopped...
+      }
     },
     collectStar: function(player, star) {
       star.kill();
       alivedStarCount--;
-
-      score += 10;
-      scoreText.text = 'Score: ' + score;
+      socket.emit("score", {id : player.id, score: 10});
     },
-    syncPlayer: function(player) {
-      socket.emit("position", {x: player.x, y:player.y});
+    hitShuriken: function(player, shuriken) {
+      if (shuriken.ownerId != player.id) {
+        shuriken.kill();
+        socket.emit("score", {id : player.id, score: -10});
+        socket.emit("score", {id : shuriken.ownerId, score: 10});
+      }
     },
   };
 
